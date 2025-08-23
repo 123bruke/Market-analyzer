@@ -1,0 +1,162 @@
+# ============ smart market analayzer ============
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import classification_report, confusion_matrix
+import seaborn as sns
+import warnings
+warnings.filterwarnings("ignore")
+
+
+# ============ Data Preparation ============
+def generate_sample_data(n=300):
+    """Generate synthetic finance dataset."""
+    np.random.seed(42)
+    age = np.random.randint(18, 65, n)
+    income = np.random.randint(20000, 150000, n)
+    risk = np.random.randint(1, 4, n)  # 1=Low,2=Medium,3=High
+
+    # Define product rules (simplified)
+    labels = []
+    for a, inc, r in zip(age, income, risk):
+        if r == 1 and inc < 50000:
+            labels.append("Savings Account")
+        elif r == 2 and 50000 <= inc <= 100000:
+            labels.append("Mutual Fund")
+        else:
+            labels.append("Stocks")
+
+    df = pd.DataFrame({"Age": age, "Income": income,
+                       "Risk": risk, "Product": labels})
+    return df
+
+
+# ============ ML Pipeline ============
+class FinanceRecommender:
+    def __init__(self):
+        self.pipeline = Pipeline([
+            ("scaler", StandardScaler()),
+            ("clf", LogisticRegression(multi_class="multinomial", max_iter=1000))
+        ])
+        self.trained = False
+
+    def train(self, X, y):
+        """Train pipeline and evaluate with CV."""
+        self.pipeline.fit(X, y)
+        scores = cross_val_score(self.pipeline, X, y, cv=5)
+        print(f"Cross-validation Accuracy: {scores.mean():.2f}")
+        self.trained = True
+
+    def evaluate(self, X_test, y_test):
+        """Print classification metrics."""
+        if not self.trained:
+            raise Exception("Model not trained yet!")
+        y_pred = self.pipeline.predict(X_test)
+        print("\nClassification Report:")
+        print(classification_report(y_test, y_pred))
+        print("Confusion Matrix:")
+        print(confusion_matrix(y_test, y_pred))
+
+    def predict(self, features):
+        """Make prediction for a single user."""
+        return self.pipeline.predict([features])[0]
+
+    def feature_importance(self, X, y):
+        """Plot feature importance (coefficients)."""
+        coef = self.pipeline.named_steps['clf'].coef_
+        avg_coef = np.mean(np.abs(coef), axis=0)
+        plt.bar(X.columns, avg_coef)
+        plt.title("Feature Importance (LogReg Coefficients)")
+        plt.show()
+
+
+# ============ Visualization ============
+def plot_2d(data):
+    """Scatter plot of Income vs Age with product labels."""
+    plt.figure(figsize=(8, 6))
+    sns.scatterplot(x="Age", y="Income", hue="Product", data=data, palette="Set2")
+    plt.title("Finance Product Segmentation (2D)")
+    plt.show()
+
+
+def plot_3d(data):
+    """3D scatter plot of Age, Income, Risk vs Product."""
+    fig = plt.figure(figsize=(9, 7))
+    ax = fig.add_subplot(111, projection="3d")
+    colors = {"Savings Account": "blue", "Mutual Fund": "green", "Stocks": "red"}
+
+    for prod, color in colors.items():
+        subset = data[data["Product"] == prod]
+        ax.scatter(subset["Age"], subset["Income"], subset["Risk"],
+                   c=color, label=prod, alpha=0.6)
+
+    ax.set_xlabel("Age")
+    ax.set_ylabel("Income")
+    ax.set_zlabel("Risk Level")
+    ax.set_title("Finance Products (3D view)")
+    ax.legend()
+    plt.show()
+
+
+# ============ Future Simulation ============
+def simulate_future(recommender, X, years=5):
+    """
+    Simulate user income growth and risk evolution,
+    then predict future product recommendations.
+    """
+    print("\n--- Future Finance Simulation ---")
+    for year in range(1, years+1):
+        X_future = X.copy()
+        X_future["Income"] = X_future["Income"] * (1 + 0.05*year)  # assume 5% yearly growth
+        X_future["Risk"] = np.clip(X_future["Risk"] + np.random.randint(-1, 2, len(X_future)), 1, 3)
+
+        preds = recommender.pipeline.predict(X_future)
+        unique, counts = np.unique(preds, return_counts=True)
+        print(f"Year {year}:")
+        for u, c in zip(unique, counts):
+            print(f"   {u}: {c} users")
+
+
+# ============ Main Program ============
+def main():
+    print("=== Finance Product Recommendation System ===")
+
+    # 1. Generate data
+    data = generate_sample_data(400)
+
+    # 2. Train-test split
+    X = data[["Age", "Income", "Risk"]]
+    y = data["Product"]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # 3. Train model
+    model = FinanceRecommender()
+    model.train(X_train, y_train)
+    model.evaluate(X_test, y_test)
+
+    # 4. Visualizations
+    plot_2d(data)
+    plot_3d(data)
+    model.feature_importance(X, y)
+
+    # 5. User Input
+    try:
+        age = int(input("Enter your Age: "))
+        income = float(input("Enter your Annual Income (USD): "))
+        risk = int(input("Enter Risk Level (1=Low,2=Med,3=High): "))
+        user_pred = model.predict([age, income, risk])
+        print(f"\n>>> Recommended Product: {user_pred}")
+    except:
+        print("Invalid input, skipping user prediction.")
+
+    # 6. Future simulation
+    simulate_future(model, X)
+
+
+if __name__ == "__main__":
+    main()
