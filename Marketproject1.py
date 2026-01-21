@@ -1,4 +1,3 @@
-# ============ smart market analayzer ============
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -11,17 +10,12 @@ from sklearn.metrics import classification_report, confusion_matrix
 import seaborn as sns
 import warnings
 warnings.filterwarnings("ignore")
-
-
-# ============ Data Preparation ============
 def generate_sample_data(n=300):
     """Generate synthetic finance dataset."""
     np.random.seed(42)
     age = np.random.randint(18, 65, n)
     income = np.random.randint(20000, 150000, n)
-    risk = np.random.randint(1, 4, n)  # 1=Low,2=Medium,3=High
-
-    # Define product rules (simplified)
+    risk = np.random.randint(1, 4, n)  
     labels = []
     for a, inc, r in zip(age, income, risk):
         if r == 1 and inc < 50000:
@@ -75,7 +69,7 @@ class FinanceRecommender:
         plt.show()
 
 
-# ============ Visualization ============
+#  final data visualization format 
 def plot_2d(data):
     """Scatter plot of Income vs Age with product labels."""
     plt.figure(figsize=(8, 6))
@@ -120,31 +114,19 @@ def simulate_future(recommender, X, years=5):
         print(f"Year {year}:")
         for u, c in zip(unique, counts):
             print(f"   {u}: {c} users")
-
-
-# ============ Main Program ============
 def main():
     print("=== Finance Product Recommendation System ===")
-
-    # 1. Generate data
     data = generate_sample_data(400)
-
-    # 2. Train-test split
     X = data[["Age", "Income", "Risk"]]
     y = data["Product"]
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-    # 3. Train model
     model = FinanceRecommender()
     model.train(X_train, y_train)
     model.evaluate(X_test, y_test)
 
-    # 4. Visualizations
     plot_2d(data)
     plot_3d(data)
     model.feature_importance(X, y)
-
-    # 5. User Input
     try:
         age = int(input("Enter your Age: "))
         income = float(input("Enter your Annual Income (USD): "))
@@ -153,8 +135,6 @@ def main():
         print(f"\n>>> Recommended Product: {user_pred}")
     except:
         print("Invalid input, skipping user prediction.")
-
-    # 6. Future simulation
     simulate_future(model, X)
 
 
